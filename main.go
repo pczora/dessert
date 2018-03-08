@@ -21,12 +21,12 @@ func main() {
 	requestServer.HandleFunc("/", logRequest)
 
 	go func() {
-		if err := http.ListenAndServe("localhost:8080", requestServer); err != nil {
+		if err := http.ListenAndServe(":8080", requestServer); err != nil {
 			panic(err)
 		}
 	}()
 
-	if err := http.ListenAndServe("localhost:9080", monitoringServer); err != nil {
+	if err := http.ListenAndServe(":9080", monitoringServer); err != nil {
 		panic(err)
 	}
 
@@ -39,12 +39,9 @@ func logRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-func getRequests(w http.ResponseWriter, r *http.Request) {
+func getRequests(w http.ResponseWriter, _ *http.Request) {
 	var buffer bytes.Buffer
-	for _, r := range requests {
-		jsonString, _ := json.Marshal(r)
-		buffer.Write(jsonString)
-		buffer.WriteString("\n")
-	}
+	jsonString, _ := json.Marshal(requests)
+	buffer.Write(jsonString)
 	w.Write(buffer.Bytes())
 }
