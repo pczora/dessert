@@ -1,37 +1,39 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
 	"github.com/gorilla/websocket"
 )
 
 type ClientConnections struct {
-	conns []*WebsocketClient
+	clients   map[*WebsocketClient]bool
+	register  chan *WebsocketClient
+	sendToAll chan []byte
 }
 
 func NewConnections() *ClientConnections {
-	return &ClientConnections{}
+	return &ClientConnections{
+		clients:   make(map[*WebsocketClient]bool),
+		register:  make(chan *WebsocketClient),
+		sendToAll: make(chan []byte, 2048),
+	}
 }
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  2048,
+	WriteBufferSize: 2048,
 }
 
-func (c *ClientConnections) sendToAll(msg string) {
-	for _, client := range c.conns {
-		client.send([]byte(msg))
+func (c *ClientConnections) run() {
+	for {
+		select {
+		case client := <-c.register:
+			c.clients[client] = true
+		case msg := <-c.sendToAll:
+			for client := range c.clients {
+				client.send <- msg
+			}
+		}
+		// TODO: unregister clients/gracefully terminate connections
 	}
-}
 
-func serveWebsocket(c *ClientConnections, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	client := &WebsocketClient{conn}
-	c.conns = append(c.conns, client)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"time"
 )
 
 type loggedRequest struct {
@@ -46,7 +45,9 @@ func main() {
 func logRequest(w http.ResponseWriter, r *http.Request) {
 	request := loggedRequest{r.Method, r.URL.Path}
 	jsonBytes, _ := json.Marshal(request)
-	clientConnections.sendToAll(string(jsonBytes) + "\n")
+
+	clientConnections.sendToAll <- jsonBytes
+
 	requests = append(requests, request)
 	w.WriteHeader(200)
 }
@@ -59,7 +60,6 @@ func getRequests(w http.ResponseWriter, _ *http.Request) {
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
-	go serveWebsocket(clientConnections, w, r)
-	// TODO: ugly af - fully asynchronify all of this
-	time.Sleep(1 * time.Millisecond)
+	go clientConnections.run()
+	serveWebsocket(clientConnections, w, r)
 }
