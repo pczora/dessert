@@ -20,6 +20,7 @@ func (c *WebsocketClient) run() {
 		select {
 		case msg := <-c.send:
 			fmt.Println(string(msg))
+			c.conn.WriteMessage(websocket.TextMessage, msg)
 		}
 	}
 }

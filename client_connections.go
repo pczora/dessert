@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
+	"log"
+	"net/http"
 )
 
 type ClientConnections struct {
@@ -21,16 +23,22 @@ func NewConnections() *ClientConnections {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  2048,
 	WriteBufferSize: 2048,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 func (c *ClientConnections) run() {
 	for {
 		select {
 		case client := <-c.register:
+			log.Println("Client registered")
 			c.clients[client] = true
 		case msg := <-c.sendToAll:
+			log.Println("Sending message to clients...")
 			for client := range c.clients {
 				client.send <- msg
+				log.Println("sent.")
 			}
 		}
 		// TODO: unregister clients/gracefully terminate connections
