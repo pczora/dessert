@@ -4,17 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+
+	"github.com/pczora/dessert/requestserver"
 )
 
-type loggedRequest struct {
+type LoggedRequest struct {
 	Method string
 	Path   string
 }
 
-var requests = make([]loggedRequest, 0)
+var requests = make([]LoggedRequest, 0)
 var clientConnections = NewConnections()
 
 func main() {
+
+	rServer := requestserver.NewRequestServer()
 	monitoringServer := http.NewServeMux()
 	monitoringServer.HandleFunc("/getRequests", getRequests)
 
@@ -22,7 +26,10 @@ func main() {
 	websocketServer.HandleFunc("/ws", serveWs)
 
 	requestServer := http.NewServeMux()
-	requestServer.HandleFunc("/", logRequest)
+	requestServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		logRequest(w, r)
+		rServer.HandleRequest(w, r)
+	})
 
 	go func() {
 		if err := http.ListenAndServe(":8080", requestServer); err != nil {
@@ -43,13 +50,12 @@ func main() {
 }
 
 func logRequest(w http.ResponseWriter, r *http.Request) {
-	request := loggedRequest{r.Method, r.URL.Path}
+	request := LoggedRequest{r.Method, r.URL.Path}
 	jsonBytes, _ := json.Marshal(request)
 
 	clientConnections.sendToAll <- jsonBytes
 
 	requests = append(requests, request)
-	w.WriteHeader(200)
 }
 
 func getRequests(w http.ResponseWriter, _ *http.Request) {
